@@ -23,6 +23,8 @@ You can be detected with this rule the following:
 - `v-t`
 - `<i18n>`
 
+You can extend call expression targets with `additionalFunctionNames`.
+
 :-1: Examples of **incorrect** code for this rule:
 
 locale messages:
@@ -181,6 +183,21 @@ For SFC.
 ```
 
 </eslint-code-block>
+
+## :gear: Options
+
+```json
+{
+  "@intlify/vue-i18n/no-missing-keys": [
+    "error",
+    {
+      "additionalFunctionNames": ["someI18nFunction"]
+    }
+  ]
+}
+```
+
+- `additionalFunctionNames`: an array of additional function names treated like vue-i18n functions `t`, `$t`, `tc`, `$tc`.
 
 ## :couple: Related Rules
 

@@ -8,11 +8,15 @@ import {
   isStaticLiteral,
   compositingVisitors
 } from '../utils/index'
+import { getI18nFunctionNames } from '../utils/i18n-functions'
 import type { AST as VAST } from 'vue-eslint-parser'
 import type { RuleContext, RuleListener } from '../types'
 import { createRule } from '../utils/rule'
 
 function create(context: RuleContext): RuleListener {
+  const options = (context.options && context.options[0]) || {}
+  const i18nFunctionNames = getI18nFunctionNames(options)
+
   return compositingVisitors(
     defineTemplateBodyVisitor(context, {
       "VAttribute[directive=true][key.name='t']"(node: VAST.VDirective) {
@@ -31,12 +35,12 @@ function create(context: RuleContext): RuleListener {
       },
 
       CallExpression(node: VAST.ESLintCallExpression) {
-        checkCallExpression(context, node)
+        checkCallExpression(context, node, i18nFunctionNames)
       }
     }),
     {
       CallExpression(node: VAST.ESLintCallExpression) {
-        checkCallExpression(context, node)
+        checkCallExpression(context, node, i18nFunctionNames)
       }
     }
   )
@@ -92,7 +96,8 @@ function checkComponent(context: RuleContext, node: VAST.VAttribute) {
 
 function checkCallExpression(
   context: RuleContext,
-  node: VAST.ESLintCallExpression
+  node: VAST.ESLintCallExpression,
+  functionNames: Set<string>
 ) {
   const funcName =
     (node.callee.type === 'MemberExpression' &&
@@ -102,7 +107,7 @@ function checkCallExpression(
     ''
 
   if (
-    !/^(\$t|t|\$tc|tc)$/.test(funcName) ||
+    !functionNames.has(funcName) ||
     !node.arguments ||
     !node.arguments.length
   ) {
@@ -142,7 +147,19 @@ export = createRule({
       recommended: true
     },
     fixable: null,
-    schema: [],
+    schema: [
+      {
+        type: 'object',
+        properties: {
+          additionalFunctionNames: {
+            type: 'array',
+            items: { type: 'string' },
+            uniqueItems: true
+          }
+        },
+        additionalProperties: false
+      }
+    ],
     messages: {
       missing: "'{{path}}' does not exist in localization message resources"
     }

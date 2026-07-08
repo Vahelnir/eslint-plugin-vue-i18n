@@ -6,6 +6,7 @@ import {
   defineTemplateBodyVisitor,
   isStaticLiteral
 } from '../utils/index'
+import { getI18nFunctionNames } from '../utils/i18n-functions'
 import type { RuleContext, RuleListener } from '../types'
 import type { AST as VAST } from 'vue-eslint-parser'
 import { createRule } from '../utils/rule'
@@ -78,8 +79,10 @@ function checkCallExpression(
     (node.callee.type === 'Identifier' && node.callee.name) ||
     ''
 
+  const options = (context.options && context.options[0]) || {}
+  const i18nFunctionNames = getI18nFunctionNames(options)
   if (
-    !/^(\$t|t|\$tc|tc)$/.test(funcName) ||
+    !i18nFunctionNames.has(funcName) ||
     !node.arguments ||
     !node.arguments.length
   ) {
@@ -135,7 +138,19 @@ export = createRule({
       recommended: false
     },
     fixable: null,
-    schema: []
+    schema: [
+      {
+        type: 'object',
+        properties: {
+          additionalFunctionNames: {
+            type: 'array',
+            items: { type: 'string' },
+            uniqueItems: true
+          }
+        },
+        additionalProperties: false
+      }
+    ]
   },
   create
 })

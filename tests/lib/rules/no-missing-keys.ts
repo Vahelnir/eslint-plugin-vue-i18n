@@ -101,6 +101,11 @@ tester.run('no-missing-keys', rule as never, {
       },
       {
         code: `$t('messages.en-only')`
+      },
+      {
+        // custom function allowed via additionalFunctionNames
+        code: `someCustomFunction('hello')`,
+        options: [{ additionalFunctionNames: ['someCustomFunction'] }]
       }
     ],
     [
@@ -306,6 +311,12 @@ tester.run('no-missing-keys', rule as never, {
         errors: [
           `'messages.missing' does not exist in localization message resources`
         ]
+      },
+      {
+        // custom function with missing key
+        code: `someCustomFunction('missing')`,
+        options: [{ additionalFunctionNames: ['someCustomFunction'] }],
+        errors: [`'missing' does not exist in localization message resources`]
       }
     ],
     [

@@ -81,6 +81,9 @@ function create(context: RuleContext): RuleListener {
   const options = (context.options && context.options[0]) || {}
   const enableFix = options.enableFix
   const ignores = ((options.ignores || []) as string[]).map(toRegExp)
+  const additionalFunctionNames = Array.isArray(options.additionalFunctionNames)
+    ? options.additionalFunctionNames
+    : []
 
   function createVerifyContext<N extends JSONAST.JSONNode | YAMLAST.YAMLNode>(
     usedKeys: UsedKeys,
@@ -512,7 +515,8 @@ function create(context: RuleContext): RuleListener {
         const localeMessages = getLocaleMessages(context)
         const usedLocaleMessageKeys = collectKeysFromAST(
           sourceCode.ast as VAST.ESLintProgram,
-          sourceCode.visitorKeys
+          sourceCode.visitorKeys,
+          { additionalFunctionNames }
         )
         const targetLocaleMessage = localeMessages.findBlockLocaleMessage(
           ctx.parserServices.customBlock
@@ -551,7 +555,8 @@ function create(context: RuleContext): RuleListener {
     const usedLocaleMessageKeys = usedKeysCache.collectKeysFromFiles(
       [src],
       extensions,
-      context
+      context,
+      { additionalFunctionNames }
     )
 
     const usedKeys = getUsedKeysMap(
@@ -601,6 +606,11 @@ export = createRule({
           },
           enableFix: {
             type: 'boolean'
+          },
+          additionalFunctionNames: {
+            type: 'array',
+            items: { type: 'string' },
+            uniqueItems: true
           }
         },
         additionalProperties: false

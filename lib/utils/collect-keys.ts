@@ -3,6 +3,7 @@
  * @author kazuya kawaguchi (a.k.a. kazupon)
  */
 import { AST as VAST } from 'vue-eslint-parser'
+import { getI18nFunctionNames } from './i18n-functions'
 import { resolve, extname } from 'path'
 import { listFilesToProcess } from './glob-utils'
 import { ResourceLoader } from './resource-loader'
@@ -20,7 +21,10 @@ const debug = debugBuilder('eslint-plugin-vue-i18n:collect-keys')
  *
  * @param {CallExpression} node
  */
-function getKeyFromCallExpression(node: VAST.ESLintCallExpression) {
+function getKeyFromCallExpression(
+  node: VAST.ESLintCallExpression,
+  options?: { additionalFunctionNames?: string[] }
+) {
   const funcName =
     (node.callee.type === 'MemberExpression' &&
       node.callee.property.type === 'Identifier' &&
@@ -28,11 +32,9 @@ function getKeyFromCallExpression(node: VAST.ESLintCallExpression) {
     (node.callee.type === 'Identifier' && node.callee.name) ||
     ''
 
-  if (
-    !/^(\$t|t|\$tc|tc)$/.test(funcName) ||
-    !node.arguments ||
-    !node.arguments.length
-  ) {
+  const i18nFunctionNames = getI18nFunctionNames(options)
+  const allowed = i18nFunctionNames.has(funcName)
+  if (!allowed || !node.arguments || !node.arguments.length) {
     return null
   }
 
@@ -76,7 +78,11 @@ function getKeyFromI18nComponent(node: VAST.VAttribute) {
  * @param {string} filename
  * @returns {string[]}
  */
-function collectKeysFromText(filename: string, parser: Parser) {
+function collectKeysFromText(
+  filename: string,
+  parser: Parser,
+  options?: { additionalFunctionNames?: string[] }
+) {
   const effectiveFilename = filename || '<text>'
   debug(`collectKeysFromFile ${effectiveFilename}`)
   try {
@@ -84,7 +90,7 @@ function collectKeysFromText(filename: string, parser: Parser) {
     if (!parseResult) {
       return []
     }
-    return collectKeysFromAST(parseResult.ast, parseResult.visitorKeys)
+    return collectKeysFromAST(parseResult.ast, parseResult.visitorKeys, options)
   } catch (_e) {
     return []
   }
@@ -94,7 +100,11 @@ function collectKeysFromText(filename: string, parser: Parser) {
  * Collect the used keys from files.
  * @returns {ResourceLoader[]}
  */
-function collectKeyResourcesFromFiles(fileNames: string[], cwd: string) {
+function collectKeyResourcesFromFiles(
+  fileNames: string[],
+  cwd: string,
+  options?: { additionalFunctionNames?: string[] }
+) {
   debug('collectKeysFromFiles', fileNames)
 
   const parser = buildParserFromConfig(cwd)
@@ -107,7 +117,7 @@ function collectKeyResourcesFromFiles(fileNames: string[], cwd: string) {
 
     results.push(
       new ResourceLoader(resolve(filename), () => {
-        return collectKeysFromText(filename, parser)
+        return collectKeysFromText(filename, parser, options)
       })
     )
   }
@@ -121,11 +131,13 @@ function collectKeyResourcesFromFiles(fileNames: string[], cwd: string) {
  */
 export function collectKeysFromAST(
   node: VAST.ESLintProgram,
-  visitorKeys?: VisitorKeys
+  visitorKeys?: VisitorKeys,
+  options?: { additionalFunctionNames?: string[] }
 ): string[] {
   debug('collectKeysFromAST')
 
   const results = new Set<string>()
+  const additionalFunctionNames = options?.additionalFunctionNames || []
   /**
    * @param {Node} node
    */
@@ -168,7 +180,7 @@ export function collectKeysFromAST(
       }
     } else if (node.type === 'CallExpression') {
       debug('CallExpression handling ...')
-      const key = getKeyFromCallExpression(node)
+      const key = getKeyFromCallExpression(node, { additionalFunctionNames })
       if (key) {
         results.add(String(key))
       }
@@ -224,10 +236,16 @@ class UsedKeysCache {
   collectKeysFromFiles(
     files: string[],
     extensions: string[],
-    context: RuleContext
+    context: RuleContext,
+    options?: { additionalFunctionNames?: string[] }
   ) {
     const result = new Set<string>()
-    for (const resource of this._getKeyResources(context, files, extensions)) {
+    for (const resource of this._getKeyResources(
+      context,
+      files,
+      extensions,
+      options
+    )) {
       for (const key of resource.getResource()) {
         result.add(key)
       }
@@ -241,11 +259,12 @@ class UsedKeysCache {
   _getKeyResources(
     context: RuleContext,
     files: string[],
-    extensions: string[]
+    extensions: string[],
+    options?: { additionalFunctionNames?: string[] }
   ) {
     const cwd = getCwd(context)
     const fileNames = this._targetFilesLoader.get(cwd, files, extensions, cwd)
-    return this._collectKeyResourcesFromFiles(fileNames, cwd)
+    return collectKeyResourcesFromFiles(fileNames, cwd, options)
   }
 }
 

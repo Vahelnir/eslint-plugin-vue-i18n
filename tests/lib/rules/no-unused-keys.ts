@@ -18,6 +18,25 @@ new RuleTester({
 }).run('no-unused-keys', rule as never, {
   valid: [
     {
+      // custom function allowed via additionalFunctionNames
+      filename: 'test.vue',
+      code: `
+        <i18n locale="en">
+        {
+          "hello": "hello world"
+        }
+        </i18n>
+        <script>
+        export default {
+          created () {
+            someCustomFunction('hello')
+          }
+        }
+        </script>
+      `,
+      options: [{ additionalFunctionNames: ['someCustomFunction'] }]
+    },
+    {
       // sfc supports
       filename: 'test.vue',
       code: `
@@ -302,6 +321,50 @@ new RuleTester({
     }
   ],
   invalid: [
+    {
+      // custom function with unused key
+      filename: 'test.vue',
+      code: `
+        <i18n locale="en">
+        {
+          "hello": "hello world",
+          "unused": "not used"
+        }
+        </i18n>
+        <script>
+        export default {
+          created () {
+            someCustomFunction('hello')
+          }
+        }
+        </script>
+      `,
+      options: [{ additionalFunctionNames: ['someCustomFunction'] }],
+      errors: [
+        {
+          message: "unused 'unused' key",
+          suggestions: [
+            {
+              desc: "Remove the 'unused' key.",
+              output: `
+        <i18n locale="en">
+        {
+          "hello": "hello world"
+        }
+        </i18n>
+        <script>
+        export default {
+          created () {
+            someCustomFunction('hello')
+          }
+        }
+        </script>
+      `
+            }
+          ]
+        }
+      ]
+    },
     {
       // sfc supports
       filename: 'test.vue',

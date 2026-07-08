@@ -12,6 +12,11 @@ const tester = new RuleTester({
 tester.run('no-dynamic-keys', rule as never, {
   valid: [
     {
+      // custom function allowed via additionalFunctionNames
+      code: `someCustomFunction('hello')`,
+      options: [{ additionalFunctionNames: ['someCustomFunction'] }]
+    },
+    {
       // basic key
       code: `$t('hello')`
     },
@@ -61,6 +66,12 @@ tester.run('no-dynamic-keys', rule as never, {
   ],
 
   invalid: [
+    {
+      // custom function with dynamic key
+      code: `someCustomFunction(missing)`,
+      options: [{ additionalFunctionNames: ['someCustomFunction'] }],
+      errors: [`'missing' dynamic key is used'`]
+    },
     {
       // basic
       code: `$t(missing)`,
